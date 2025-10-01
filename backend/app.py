@@ -16,7 +16,7 @@ def create_app():
 
     migrate = Migrate(app, db)
     CORS(app, resources={
-         r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+         r"/*": {"origins": ["http://localhost:5173", "http://localhost:5174"]}}, supports_credentials=True)
 
     from routes.user_routes import users_bp
     app.register_blueprint(users_bp)

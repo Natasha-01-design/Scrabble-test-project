@@ -1,0 +1,5 @@
+- [x] Modify Home.jsx to add 'Play vs Human' and 'Play vs Computer' buttons
+- [x] Update Game.jsx to receive mode from navigation state
+- [x] Set players based on mode (Computer if vs computer)
+- [x] Implement basic AI logic for computer's turn (pass)
+- [x] Update turn handling to auto-advance on AI turn

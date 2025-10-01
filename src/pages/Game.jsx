@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import ScrabbleBoard from "../components/ScrabbleBoard";
 import TileRack from "../components/TileRack";
 import WordValidator from "../components/WordValidator";
 import generateBag from "../components/TileBag";
 import "../components/scrabble-style.css";
+import isWordValid from "../components/index";
+
 
 const BONUS_TEMPLATE = [
   ["TW", "", "", "DL", "", "", "", "TW", "", "", "", "DL", "", "", "TW"],
@@ -30,21 +32,32 @@ const generateEmptyBoard = () => {
   );
 };
 
-const initialPlayers = [
-  { name: "User1", score: 0, rack: [] },
-  { name: "User2", score: 0, rack: [] },
-];
+const getInitialPlayers = (mode) => {
+  if (mode === 'computer') {
+    return [
+      { name: "Human", score: 0, rack: [] },
+      { name: "Computer", score: 0, rack: [] },
+    ];
+  }
+  return [
+    { name: "User1", score: 0, rack: [] },
+    { name: "User2", score: 0, rack: [] },
+  ];
+};
 
 function Game() {
   const navigate = useNavigate();
-  const [players, setPlayers] = useState(initialPlayers);
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+  const location = useLocation();
+  const mode = location.state?.mode || 'human';
+  const [players, setPlayers] = useState(() => getInitialPlayers(mode));
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(() => mode === 'computer' ? 1 : 0);
   const [turnCounts, setTurnCounts] = useState([0, 0]);
   const [board, setBoard] = useState(generateEmptyBoard());
   const [tileBag, setTileBag] = useState(generateBag());
   const [wordScore, setWordScore] = useState(0);
   const [selectedTile, setSelectedTile] = useState(null);
   const [timeLeft, setTimeLeft] = useState(60);
+  const [computerThinking, setComputerThinking] = useState(false);
   const MAX_TURNS = 2;
 
   const currentPlayer = players[currentPlayerIndex];
@@ -60,6 +73,7 @@ function Game() {
   }, []);
 
   useEffect(() => {
+    if (currentPlayer.name === 'Computer') return; // No timer for computer
     if (timeLeft <= 0) {
       handlePass();
       return;
@@ -68,7 +82,240 @@ function Game() {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [timeLeft, currentPlayer.name]);
+
+  const twoLetterWords = ["AT", "TO", "IN", "ON", "IT", "IS", "AS", "BE", "BY", "DO", "GO", "HE", "HI", "IF", "ME", "MY", "NO", "OF", "OH", "OR", "SO", "UP", "US", "WE"];
+
+const validateAndCommitMove = async () => {
+  // Clear isNew flags on tiles
+  setBoard((prevBoard) =>
+    prevBoard.map((row) =>
+      row.map((cell) => {
+        if (cell.tile?.isNew) {
+          const newTile = { ...cell.tile };
+          delete newTile.isNew;
+          return { ...cell, tile: newTile };
+        }
+        return cell;
+      })
+    )
+  );
+
+  setSelectedTile(null);
+  setTimeLeft(60);
+  handleTurnAdvance();
+};
+
+const aiPlay = async () => {
+  const rackLetters = currentPlayer.rack.map(t => t.letter);
+  console.log("Computer rack:", rackLetters);
+
+  // Determine if first move
+  const isFirstMove = board.every((row) =>
+    row.every((cell) => !cell.tile || cell.tile?.isNew)
+  );
+
+  if (isFirstMove) {
+    // Place at center
+    if (board[7][7].tile === null && board[7][8].tile === null) {
+      // Try all 2-letter combinations
+      for (let i = 0; i < rackLetters.length; i++) {
+        for (let j = i + 1; j < rackLetters.length; j++) {
+          const word = rackLetters[i] + rackLetters[j];
+
+          // ✅ Check dictionary API
+          const isValid = await isWordValid(word.toLowerCase());
+          if (isValid) {
+            console.log("Computer chooses word:", word);
+
+            const tile1 = currentPlayer.rack[i];
+            const tile2 = currentPlayer.rack[j];
+
+            // Place word horizontally at center
+            const newBoard = board.map((row, rIdx) =>
+              row.map((cell, cIdx) => {
+                if (rIdx === 7 && cIdx === 7) return { ...cell, tile: { ...tile1, isNew: true } };
+                if (rIdx === 7 && cIdx === 8) return { ...cell, tile: { ...tile2, isNew: true } };
+                return { ...cell };
+              })
+            );
+            setBoard(newBoard);
+
+            // Calculate score
+            let totalScore = 0;
+            let wordMultiplier = 1;
+            const placedCells = [
+              { row: 7, col: 7, tile: tile1 },
+              { row: 7, col: 8, tile: tile2 }
+            ];
+            placedCells.forEach(({ row, col, tile }) => {
+              const bonus = BONUS_TEMPLATE[row][col];
+              if (bonus === "DL") totalScore += tile.value * 2;
+              else if (bonus === "TL") totalScore += tile.value * 3;
+              else totalScore += tile.value;
+              if (bonus === "DW") wordMultiplier *= 2;
+              if (bonus === "TW") wordMultiplier *= 3;
+            });
+            const finalScore = totalScore * wordMultiplier;
+            setPlayers(prev => {
+              const updated = [...prev];
+              updated[currentPlayerIndex].score += finalScore;
+              return updated;
+            });
+            setWordScore(finalScore);
+
+            // Remove tiles from rack
+            const newRack = currentPlayer.rack.filter(
+              (t, idx) => idx !== i && idx !== j
+            );
+
+            // Update players
+            setPlayers(prev => {
+              const updated = [...prev];
+              updated[currentPlayerIndex] = {
+                ...updated[currentPlayerIndex],
+                rack: newRack,
+              };
+              return updated;
+            });
+
+            // Refill rack
+            setTileBag(prevBag => {
+              const updatedBag = [...prevBag];
+              const rackWithRefills = [...newRack];
+              while (rackWithRefills.length < 7 && updatedBag.length > 0) {
+                rackWithRefills.push(updatedBag.pop());
+              }
+
+              setPlayers(prev => {
+                const updated = [...prev];
+                updated[currentPlayerIndex] = {
+                  ...updated[currentPlayerIndex],
+                  rack: rackWithRefills,
+                };
+                return updated;
+              });
+
+              return updatedBag;
+            });
+
+            await validateAndCommitMove();
+            return;
+          }
+        }
+      }
+    }
+  } else {
+    // For later moves, try to find empty positions
+    for (let row = 0; row < 15; row++) {
+      for (let col = 0; col < 14; col++) {
+        if (board[row][col].tile === null && board[row][col + 1].tile === null) {
+          // Try all 2-letter combinations
+          for (let i = 0; i < rackLetters.length; i++) {
+            for (let j = i + 1; j < rackLetters.length; j++) {
+              const word = rackLetters[i] + rackLetters[j];
+
+              // ✅ Check dictionary API
+              const isValid = await isWordValid(word.toLowerCase());
+              if (isValid) {
+                console.log("Computer chooses word:", word, "at", row, col);
+
+                const tile1 = currentPlayer.rack[i];
+                const tile2 = currentPlayer.rack[j];
+
+                // Place word horizontally
+                const newBoard = board.map((r, rIdx) =>
+                  r.map((cell, cIdx) => {
+                    if (rIdx === row && cIdx === col) return { ...cell, tile: { ...tile1, isNew: true } };
+                    if (rIdx === row && cIdx === col + 1) return { ...cell, tile: { ...tile2, isNew: true } };
+                    return { ...cell };
+                  })
+                );
+                setBoard(newBoard);
+
+                // Calculate score
+                let totalScore = 0;
+                let wordMultiplier = 1;
+                const placedCells = [
+                  { row: row, col: col, tile: tile1 },
+                  { row: row, col: col + 1, tile: tile2 }
+                ];
+                placedCells.forEach(({ row: r, col: c, tile }) => {
+                  const bonus = BONUS_TEMPLATE[r][c];
+                  if (bonus === "DL") totalScore += tile.value * 2;
+                  else if (bonus === "TL") totalScore += tile.value * 3;
+                  else totalScore += tile.value;
+                  if (bonus === "DW") wordMultiplier *= 2;
+                  if (bonus === "TW") wordMultiplier *= 3;
+                });
+                const finalScore = totalScore * wordMultiplier;
+                setPlayers(prev => {
+                  const updated = [...prev];
+                  updated[currentPlayerIndex].score += finalScore;
+                  return updated;
+                });
+                setWordScore(finalScore);
+
+                // Remove tiles from rack
+                const newRack = currentPlayer.rack.filter(
+                  (t, idx) => idx !== i && idx !== j
+                );
+
+                // Update players
+                setPlayers(prev => {
+                  const updated = [...prev];
+                  updated[currentPlayerIndex] = {
+                    ...updated[currentPlayerIndex],
+                    rack: newRack,
+                  };
+                  return updated;
+                });
+
+                // Refill rack
+                setTileBag(prevBag => {
+                  const updatedBag = [...prevBag];
+                  const rackWithRefills = [...newRack];
+                  while (rackWithRefills.length < 7 && updatedBag.length > 0) {
+                    rackWithRefills.push(updatedBag.pop());
+                  }
+
+                  setPlayers(prev => {
+                    const updated = [...prev];
+                    updated[currentPlayerIndex] = {
+                      ...updated[currentPlayerIndex],
+                      rack: rackWithRefills,
+                    };
+                    return updated;
+                  });
+
+                  return updatedBag;
+                });
+
+                await validateAndCommitMove();
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // If no valid word found → pass
+  console.log("Computer passes");
+  handlePass();
+};
+
+  useEffect(() => {
+    if (currentPlayer.name === 'Computer' && !computerThinking) {
+      setComputerThinking(true);
+      // Simulate AI thinking
+      setTimeout(() => {
+        aiPlay();
+        setComputerThinking(false);
+      }, 1000);
+    }
+  }, [currentPlayerIndex]);
 
   const handleTurnAdvance = () => {
     const newTurnCounts = [...turnCounts];

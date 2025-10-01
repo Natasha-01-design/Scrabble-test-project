@@ -66,7 +66,7 @@ function Home() {
         <span>L</span>
         <span>E</span>
       </h1>
-      <Link to="/game">
+      <Link to="/game" state={{ mode: 'human' }}>
         <button
           style={{
             marginTop: "2rem",
@@ -76,35 +76,25 @@ function Home() {
             border: "none",
           }}
         >
-          Play
+          Play vs Human
         </button>
       </Link>
 
-      <Link to="/register" style={{ marginTop: "1rem" }}>
+      <Link to="/game" state={{ mode: 'computer' }}>
         <button
           style={{
-            fontSize: "1rem",
-            padding: "0.5rem 1rem",
+            marginTop: "1rem",
+            fontSize: "1.5rem",
+            padding: "0.5rem 2rem",
             borderRadius: "10px",
             border: "none",
           }}
         >
-          Register
+          Play vs Computer
         </button>
       </Link>
 
-      <div style={{ marginTop: "2rem", color: "white" }}>
-        <h2>Registered Players:</h2>
-        {users.length > 0 ? (
-          <ul>
-            {users.map((user) => (
-              <li key={user.id}>{user.username}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No players registered yet.</p>
-        )}
-      </div>
+
     </div>
   );
 }

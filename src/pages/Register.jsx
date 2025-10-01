@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 function Register() {
   const [username, setUsername] = useState('');
@@ -38,8 +38,16 @@ function Register() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-      <h2>Register</h2>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      background: "linear-gradient(to bottom, #00010a 50%, #0156a4 100%)",
+      color: "white"
+    }}>
+      <h2 style={{ color: "white" }}>Register</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', width: '300px' }}>
         <input
           type="text"
@@ -47,7 +55,13 @@ function Register() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
-          style={{ margin: '5px 0', padding: '10px' }}
+          style={{
+            margin: '5px 0',
+            padding: '0.5rem 2rem',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '1rem'
+          }}
         />
         <input
           type="password"
@@ -55,7 +69,13 @@ function Register() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          style={{ margin: '5px 0', padding: '10px' }}
+          style={{
+            margin: '5px 0',
+            padding: '0.5rem 2rem',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '1rem'
+          }}
         />
         <input
           type="text"
@@ -63,9 +83,38 @@ function Register() {
           value={country}
           onChange={(e) => setCountry(e.target.value)}
           required
-          style={{ margin: '5px 0', padding: '10px' }}
+          style={{
+            margin: '5px 0',
+            padding: '0.5rem 2rem',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '1rem'
+          }}
         />
-        <button type="submit" style={{ padding: '10px', marginTop: '10px' }}>Register</button>
+        <button
+          type="submit"
+          style={{
+            marginTop: '1rem',
+            fontSize: '1.5rem',
+            padding: '0.5rem 2rem',
+            borderRadius: '10px',
+            border: 'none',
+          }}
+        >
+          Register
+        </button>
+        <Link to="/" style={{ marginTop: '1rem' }}>
+          <button
+            style={{
+              fontSize: '1rem',
+              padding: '0.5rem 1rem',
+              borderRadius: '10px',
+              border: 'none',
+            }}
+          >
+            Back to Sign In
+          </button>
+        </Link>
       </form>
       {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
     </div>

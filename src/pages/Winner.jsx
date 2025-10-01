@@ -12,7 +12,7 @@ function WinnerPage() {
       <div className="winner-container">
         <h1>No game data available</h1>
         <p>Please play a game to view results.</p>
-        <Link to="/">
+        <Link to="/home">
           <button className="new-game-button">Back to Home</button>
         </Link>
       </div>
@@ -40,7 +40,7 @@ function WinnerPage() {
         <h1 className="winner-text"> {winner} Wins!</h1>
       )}
 
-      <Link to="/">
+      <Link to="/home">
         <button className="new-game-button">New Game</button>
       </Link>
     </div>

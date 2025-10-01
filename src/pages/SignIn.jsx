@@ -20,8 +20,8 @@ function SignIn() {
     })
       .then((response) => {
         if (response.ok) {
-          // If login is successful, navigate to the game page
-          navigate("/game");
+          // If login is successful, navigate to the home page
+          navigate("/home");
           return response.json();
         } else {
           return response.json().then((err) => {
@@ -42,9 +42,11 @@ function SignIn() {
         alignItems: "center",
         justifyContent: "center",
         height: "100vh",
+        background: "linear-gradient(to bottom, #00010a 50%, #0156a4 100%)",
+        color: "white",
       }}
     >
-      <h2>Sign In</h2>
+      <h2 style={{ color: "white" }}>Sign In</h2>
       <form
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", width: "300px" }}
@@ -55,7 +57,13 @@ function SignIn() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
-          style={{ margin: "5px 0", padding: "10px" }}
+          style={{
+            margin: "5px 0",
+            padding: "0.5rem 2rem",
+            borderRadius: "10px",
+            border: "none",
+            fontSize: "1rem"
+          }}
         />
         <input
           type="password"
@@ -63,15 +71,30 @@ function SignIn() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          style={{ margin: "5px 0", padding: "10px" }}
+          style={{
+            margin: "5px 0",
+            padding: "0.5rem 2rem",
+            borderRadius: "10px",
+            border: "none",
+            fontSize: "1rem"
+          }}
         />
-        <button type="submit" style={{ padding: "10px", marginTop: "10px" }}>
+        <button
+          type="submit"
+          style={{
+            marginTop: "1rem",
+            fontSize: "1.5rem",
+            padding: "0.5rem 2rem",
+            borderRadius: "10px",
+            border: "none",
+          }}
+        >
           Sign In
         </button>
       </form>
       {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
-      <p style={{ marginTop: "20px" }}>
-        Don't have an account? <Link to="/register">Register</Link>
+      <p style={{ marginTop: "20px", color: "white" }}>
+        Don't have an account? <Link to="/register" style={{ color: "white" }}>Register</Link>
       </p>
     </div>
   );
