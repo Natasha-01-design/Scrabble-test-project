@@ -59,3 +59,10 @@ def check_session():
 def logout():
     session.pop('user_id', None)
     return jsonify({'message': 'Successfully logged out'}), 200
+
+
+@users_bp.route('/users', methods=['GET'])
+def get_users():
+    users = User.query.all()
+    result = users_schema.dump(users)
+    return jsonify(result), 200

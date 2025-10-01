@@ -58,18 +58,71 @@ function Game() {
   const [selectedTile, setSelectedTile] = useState(null);
   const [timeLeft, setTimeLeft] = useState(60);
   const [computerThinking, setComputerThinking] = useState(false);
+  const [user, setUser] = useState(null);
   const MAX_TURNS = 2;
 
   const currentPlayer = players[currentPlayerIndex];
 
   useEffect(() => {
-    setPlayers((prevPlayers) =>
-      prevPlayers.map((player) => ({
-        ...player,
-        rack: tileBag.splice(0, 7),
-      }))
-    );
-    setTileBag([...tileBag]);
+    const checkSessionAndLoadGame = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:5555/check_session', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+
+          // Load ongoing game
+          const loadResponse = await fetch('http://127.0.0.1:5555/load_game', {
+            method: 'GET',
+            credentials: 'include',
+          });
+          if (loadResponse.ok) {
+            const gameData = await loadResponse.json();
+            const gameState = gameData.game_state;
+            setBoard(gameState.board);
+            setPlayers(gameState.players);
+            setCurrentPlayerIndex(gameState.currentPlayerIndex);
+            setTurnCounts(gameState.turnCounts);
+            setTileBag(gameState.tileBag);
+            setWordScore(gameState.wordScore);
+            setTimeLeft(gameState.timeLeft);
+          } else {
+            // No saved game, fill racks
+            setPlayers((prevPlayers) =>
+              prevPlayers.map((player) => ({
+                ...player,
+                rack: tileBag.splice(0, 7),
+              }))
+            );
+            setTileBag([...tileBag]);
+          }
+        } else {
+          // Not logged in, fill racks
+          setPlayers((prevPlayers) =>
+            prevPlayers.map((player) => ({
+              ...player,
+              rack: tileBag.splice(0, 7),
+            }))
+          );
+          setTileBag([...tileBag]);
+        }
+      } catch (error) {
+        console.error('Error checking session or loading game:', error);
+        // Fallback, fill racks
+        setPlayers((prevPlayers) =>
+          prevPlayers.map((player) => ({
+            ...player,
+            rack: tileBag.splice(0, 7),
+          }))
+        );
+        setTileBag([...tileBag]);
+      }
+    };
+
+    checkSessionAndLoadGame();
   }, []);
 
   useEffect(() => {
@@ -317,9 +370,37 @@ const aiPlay = async () => {
     }
   }, [currentPlayerIndex]);
 
-  const handleTurnAdvance = () => {
+  const handleTurnAdvance = async () => {
     const newTurnCounts = [...turnCounts];
     newTurnCounts[currentPlayerIndex] += 1;
+
+    // Save game state to backend
+    if (user) {
+      const gameState = {
+        board,
+        players,
+        currentPlayerIndex,
+        turnCounts: newTurnCounts,
+        tileBag,
+        wordScore,
+        timeLeft,
+      };
+      try {
+        await fetch('http://127.0.0.1:5555/save_game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            game_state: gameState,
+            opponent_type: mode === 'computer' ? 'computer' : 'human',
+            opponent_name: mode === 'computer' ? 'Computer' : null,
+            status: 'ongoing',
+          }),
+        });
+      } catch (error) {
+        console.error('Error saving game:', error);
+      }
+    }
 
     if (newTurnCounts[0] >= MAX_TURNS && newTurnCounts[1] >= MAX_TURNS) {
       const [p1, p2] = players;
@@ -329,6 +410,20 @@ const aiPlay = async () => {
           : p2.score > p1.score
           ? p2.name
           : "It's a tie!";
+
+      // Mark game as completed
+      if (user) {
+        try {
+          await fetch('http://127.0.0.1:5555/complete_game', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ game_id: user.currentGameId }),
+          });
+        } catch (error) {
+          console.error('Error completing game:', error);
+        }
+      }
 
       navigate("/winner", {
         state: { players, winner },
